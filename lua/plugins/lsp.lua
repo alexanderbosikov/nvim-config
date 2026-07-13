@@ -8,6 +8,8 @@ return {
 		"hrsh7th/cmp-nvim-lsp",
 		"hrsh7th/cmp-buffer",
 		"hrsh7th/cmp-path",
+		"L3MON4D3/LuaSnip",
+		"saadparwaiz1/cmp_luasnip",
 	},
 	config = function()
 		local capabilities = require("cmp_nvim_lsp").default_capabilities()
@@ -52,15 +54,43 @@ return {
 
 		-- автодополнение
 		local cmp = require("cmp")
+		local luasnip = require("luasnip")
+
+		-- dbt/jinja snippets for sql files (ref, source, config, if, for, set)
+		require("custom.dbt_snippets")
+
 		cmp.setup({
+			snippet = {
+				expand = function(args)
+					luasnip.lsp_expand(args.body)
+				end,
+			},
 			mapping = cmp.mapping.preset.insert({
 				["<C-p>"] = cmp.mapping.select_prev_item({ behavior = cmp.SelectBehavior.Select }),
 				["<C-n>"] = cmp.mapping.select_next_item({ behavior = cmp.SelectBehavior.Select }),
 				["<C-y>"] = cmp.mapping.confirm({ select = true }),
 				["<C-Space>"] = cmp.mapping.complete(),
+				-- Tab / Shift-Tab jump between snippet placeholders; when not in a
+				-- snippet they fall back to a normal tab.
+				["<Tab>"] = cmp.mapping(function(fallback)
+					if luasnip.expand_or_locally_jumpable() then
+						luasnip.expand_or_jump()
+					else
+						fallback()
+					end
+				end, { "i", "s" }),
+				["<S-Tab>"] = cmp.mapping(function(fallback)
+					if luasnip.locally_jumpable(-1) then
+						luasnip.jump(-1)
+					else
+						fallback()
+					end
+				end, { "i", "s" }),
 			}),
 			sources = {
 				{ name = "nvim_lsp" },
+				{ name = "luasnip" },
+				{ name = "cmp-dbee" }, -- table/column completion from the active dbee connection (sql)
 				{ name = "buffer" },
 				{ name = "path" },
 			},

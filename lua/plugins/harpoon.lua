@@ -18,17 +18,13 @@ return {
 		harpoon.ui:toggle_quick_menu(harpoon:list())
 	end)
 
-	vim.keymap.set("n", "<C-h>", function()
-		harpoon:list():select(1)
-	end)
-	vim.keymap.set("n", "<C-j>", function()
-		harpoon:list():select(2)
-	end)
-	vim.keymap.set("n", "<C-k>", function()
-		harpoon:list():select(3)
-	end)
-	vim.keymap.set("n", "<C-l>", function()
-		harpoon:list():select(4)
-	end)
+    -- Ctrl+h/j/k/l to jump to harpoon slots 1..4 — hold Ctrl, tap the letter.
+    -- Ctrl is free here: Aerospace binds only alt-* globally, so unlike <M-…>
+    -- these actually reach nvim. (ipairs index = slot number.)
+    for idx, key in ipairs { "h", "j", "k", "l" } do
+          vim.keymap.set("n", "<C-" .. key .. ">", function()
+            harpoon:list():select(idx)
+          end)
+    end
     end,
 }

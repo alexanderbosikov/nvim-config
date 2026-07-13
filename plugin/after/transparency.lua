@@ -54,6 +54,18 @@ local groups = {
 	"NotifyDEBUGBorder",
 }
 
-for _, name in ipairs(groups) do
-	make_transparent(name)
+local function apply_all()
+	for _, name in ipairs(groups) do
+		make_transparent(name)
+	end
 end
+
+-- Re-apply after every colorscheme load, otherwise a theme applied after this
+-- file runs (e.g. the tokyonight fallback via theme_loader) restores the
+-- opaque backgrounds and transparency is lost.
+vim.api.nvim_create_autocmd("ColorScheme", {
+	desc = "Keep the editor background transparent across theme switches",
+	callback = apply_all,
+})
+
+apply_all()
