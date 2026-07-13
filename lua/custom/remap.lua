@@ -1,3 +1,4 @@
+
 vim.keymap.set("n", "<leader>e", vim.cmd.Ex)
 
 vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv")
@@ -22,7 +23,6 @@ vim.keymap.set("v", "<leader>dr", function()
   require("dbee").execute(vim.fn.getreg("v"))
 end, { desc = "DBee: run selection" })
 vim.keymap.set("i", "jk", "<Esc>")
-vim.keymap.set('i', 'ол', '<Esc>')
 
 for _, mode in ipairs({ "n", "i", "v" }) do
     vim.keymap.set(mode, "<Up>", "<Nop>")
