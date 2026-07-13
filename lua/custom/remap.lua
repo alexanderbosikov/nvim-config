@@ -1,3 +1,4 @@
+
 vim.keymap.set("n", "<leader>e", vim.cmd.Ex)
 
 vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv")
@@ -81,7 +82,6 @@ vim.keymap.set("n", "<leader>do", function()
   require("dbee").toggle()
 end, { desc = "DBee: toggle result+history layout" })
 vim.keymap.set("i", "jk", "<Esc>")
-vim.keymap.set('i', 'ол', '<Esc>')
 
 for _, mode in ipairs({ "n", "i", "v" }) do
     vim.keymap.set(mode, "<Up>", "<Nop>")
