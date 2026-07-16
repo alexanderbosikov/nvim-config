@@ -17,6 +17,7 @@ return {
 				"xml",
 				"json",
 				"markdown",
+				"markdown_inline",
 				"gitignore",
 				"diff",
 			}
