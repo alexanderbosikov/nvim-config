@@ -18,22 +18,27 @@ return {
     -- must run before setup() so the history render override is in place
     require("custom.dbee_call_log_patch")
 
+    -- регистрируем redshift только если заданы все env-переменные,
+    -- иначе dbee пингует хост "nil" и тормозит запуск nvim
+    local connections = {}
+    if redshift_user and redshift_password and redshift_host and redshift_db then
+      table.insert(connections, {
+        name = "redshift",
+        type = "redshift",
+        url = string.format(
+          "postgres://%s:%s@%s:5439/%s",
+          redshift_user,
+          redshift_password,
+          redshift_host,
+          redshift_db
+        ),
+      })
+    end
+
     require("dbee").setup({
       window_layout = require("custom.dbee_layout"):new(),
       sources = {
-        require("dbee.sources").MemorySource:new({
-          {
-            name = "redshift",
-            type = "redshift",
-            url = string.format(
-              "postgres://%s:%s@%s:5439/%s",
-              redshift_user,
-              redshift_password,
-              redshift_host,
-              redshift_db
-            ),
-          },
-        }),
+        require("dbee.sources").MemorySource:new(connections),
       },
     })
 
