@@ -21,6 +21,29 @@ return {
 				function(server)
 					require("lspconfig")[server].setup({ capabilities = capabilities })
 				end,
+				["pyright"] = function()
+					require("lspconfig").pyright.setup({
+						capabilities = capabilities,
+						-- uv не активирует venv: сами подсовываем python окружения,
+						-- иначе pyright берёт системный python без зависимостей
+						-- (polars/nb_utils и т.п. — пустой автокомплит).
+						-- Каскад: .venv проекта, иначе venv jupyter-utils — ноутбуки
+						-- в любых папках бегут на ядре jupyter-utils с nb_utils.
+						before_init = function(_, config)
+							local candidates = {
+								config.root_dir .. "/.venv/bin/python",
+								vim.fn.expand("~/Projects/jupyter-utils/.venv/bin/python"),
+							}
+							for _, python in ipairs(candidates) do
+								if vim.fn.executable(python) == 1 then
+									config.settings.python = config.settings.python or {}
+									config.settings.python.pythonPath = python
+									break
+								end
+							end
+						end,
+					})
+				end,
 				["lua_ls"] = function()
 					require("lspconfig").lua_ls.setup({
 						capabilities = capabilities,
