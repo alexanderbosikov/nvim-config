@@ -24,11 +24,36 @@ return {
 
     -- show only errors (parse errors / PRS), not style warnings (LT*, etc.).
     -- wrap the built-in parser and drop anything below ERROR severity.
+    --
+    -- Ad-hoc queries (nb_utils) use {{ var }} with values that only exist in the
+    -- notebook, so sqlfluff reports TMP "Undefined jinja template variable" and
+    -- renders them as empty strings, which then breaks parsing (false PRS).
+    -- Drop TMP always; drop PRS only when undefined variables were present —
+    -- the rendered SQL is known-garbage then. Files that template cleanly keep
+    -- their PRS diagnostics. Trade-off: a real syntax error in a file that also
+    -- has an undefined variable is hidden until the query runs.
     local base_parser = sqlfluff.parser
     sqlfluff.parser = function(output, bufnr, linter_cwd)
       local diagnostics = base_parser(output, bufnr, linter_cwd)
+      local has_undefined_var = false
+      for _, d in ipairs(diagnostics) do
+        if (d.message or ""):find("Undefined jinja template variable", 1, true) then
+          has_undefined_var = true
+          break
+        end
+      end
       return vim.tbl_filter(function(d)
-        return d.severity == vim.diagnostic.severity.ERROR
+        if d.severity ~= vim.diagnostic.severity.ERROR then
+          return false
+        end
+        local msg = d.message or ""
+        if msg:find("Undefined jinja template variable", 1, true) then
+          return false
+        end
+        if has_undefined_var and (d.code == "PRS" or msg:find("unparsable", 1, true)) then
+          return false
+        end
+        return true
       end, diagnostics)
     end
 
