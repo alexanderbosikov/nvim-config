@@ -53,19 +53,8 @@ local function fence_cell_range()
     return nil -- незакрытый фенс
 end
 
--- Выполнить текущую ячейку: markdown-буфер — fenced-блок, иначе percent.
--- Molten не парсит ячейки сам — находим границы и гоним через EvaluateVisual.
-local function eval_cell()
-    local body_start, body_end
-    if vim.bo.filetype == "markdown" then
-        body_start, body_end = fence_cell_range()
-        if not body_start then
-            vim.notify("molten: курсор вне код-ячейки (```python-блока)", vim.log.levels.WARN)
-            return
-        end
-    else
-        body_start, body_end = percent_cell_range()
-    end
+-- Выполнить диапазон строк как ячейку через MoltenEvaluateVisual.
+local function eval_range(body_start, body_end)
     -- обрезаем хвостовые пустые строки: иначе вывод molten прикрепится ПОД
     -- финальную пустую строку буфера и до него нельзя будет доскроллить
     -- (пустую строку в конце держит автокоманда в jupytext.lua ровно для того,
@@ -80,6 +69,83 @@ local function eval_cell()
     -- метки '< '>, которые читает MoltenEvaluateVisual
     vim.cmd(string.format("keepjumps normal! %dGV%dG\27", body_start, body_end))
     vim.cmd("MoltenEvaluateVisual")
+end
+
+-- Выполнить текущую ячейку: markdown-буфер — fenced-блок, иначе percent.
+-- Molten не парсит ячейки сам — находим границы и гоним через EvaluateVisual.
+local function eval_cell()
+    local body_start, body_end
+    if vim.bo.filetype == "markdown" then
+        body_start, body_end = fence_cell_range()
+        if not body_start then
+            vim.notify("molten: курсор вне код-ячейки (```python-блока)", vim.log.levels.WARN)
+            return
+        end
+    else
+        body_start, body_end = percent_cell_range()
+    end
+    eval_range(body_start, body_end)
+end
+
+-- Тела всех код-ячеек буфера (по порядку). markdown — фенсы с языком;
+-- python percent — интервалы между "# %%"-маркерами ([markdown]-ячейки
+-- пропускаются: там одни комментарии).
+local function collect_cells()
+    local total = vim.api.nvim_buf_line_count(0)
+    local cells = {}
+    if vim.bo.filetype == "markdown" then
+        local open = nil
+        for l = 1, total do
+            local line = vim.fn.getline(l)
+            if not open then
+                if line:match("^```%S") then
+                    open = l
+                end
+            elseif line:match("^```%s*$") then
+                if l - 1 >= open + 1 then
+                    table.insert(cells, { open + 1, l - 1 })
+                end
+                open = nil
+            end
+        end
+    else
+        local marks = {} -- { строка маркера, это markdown-ячейка? }
+        for l = 1, total do
+            local line = vim.fn.getline(l)
+            if line:match("^#%s*%%%%") then
+                table.insert(marks, { l, line:match("%[markdown%]") ~= nil })
+            end
+        end
+        if #marks == 0 then
+            return { { 1, total } } -- файл без маркеров — одна ячейка
+        end
+        if marks[1][1] > 1 then
+            table.insert(cells, { 1, marks[1][1] - 1 }) -- код до первого маркера
+        end
+        for i, m in ipairs(marks) do
+            local e = (marks[i + 1] and marks[i + 1][1] or total + 1) - 1
+            if not m[2] and e >= m[1] + 1 then
+                table.insert(cells, { m[1] + 1, e })
+            end
+        end
+    end
+    return cells
+end
+
+-- Выполнить все ячейки (below=true — текущую и все ниже).
+local function eval_all(below)
+    local cur = vim.api.nvim_win_get_cursor(0)
+    local n = 0
+    for _, cell in ipairs(collect_cells()) do
+        if not below or cell[2] >= cur[1] then
+            eval_range(cell[1], cell[2])
+            n = n + 1
+        end
+    end
+    vim.api.nvim_win_set_cursor(0, cur) -- курсор на место после прыжков выделения
+    if n == 0 then
+        vim.notify("molten: ячеек для выполнения не нашлось", vim.log.levels.WARN)
+    end
 end
 
 -- Вставить новую код-ячейку выше/ниже текущей (конвенция Jupyter: a/b).
@@ -197,5 +263,11 @@ return {
         map("<leader>jb", function()
             insert_cell(false)
         end, "Molten: новая ячейка ниже (below)")
+        map("<leader>jA", function()
+            eval_all(false)
+        end, "Molten: выполнить все ячейки")
+        map("<leader>jB", function()
+            eval_all(true)
+        end, "Molten: выполнить текущую и все ниже")
     end,
 }
