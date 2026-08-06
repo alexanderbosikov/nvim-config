@@ -27,4 +27,7 @@ require("lazy").setup({
   install = { colorscheme = { "habamax" } },
   -- automatically check for plugin updates
   checker = { enabled = true },
+  -- image.nvim рендерит через magick_cli (см. plugins/image.lua), luarocks не нужен.
+  -- hererocks не собран (нет бинаря luarocks) → lazy падал на сборке rockspec. Отключаем rocks.
+  rocks = { enabled = false },
 })
