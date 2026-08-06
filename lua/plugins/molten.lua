@@ -151,6 +151,29 @@ local function eval_all(below)
     end
 end
 
+-- Прыжок к началу тела предыдущей/следующей код-ячейки. MoltenNext/MoltenPrev
+-- для этого не годятся: они ходят только по ВЫПОЛНЕННЫМ ячейкам (по spans
+-- molten), а в свежем ноутбуке их нет. collect_cells() знает оба представления.
+local function goto_cell(back)
+    local cur = vim.api.nvim_win_get_cursor(0)[1]
+    local target
+    for _, cell in ipairs(collect_cells()) do
+        if back then
+            if cell[1] < cur then
+                target = cell[1] -- последняя ячейка выше курсора
+            end
+        elseif cell[1] > cur and not target then
+            target = cell[1]
+            break
+        end
+    end
+    if not target then
+        return
+    end
+    vim.cmd("normal! m'") -- в jumplist: вернуться можно '' или <C-o>
+    vim.api.nvim_win_set_cursor(0, { target, 0 })
+end
+
 -- Вставить новую код-ячейку выше/ниже текущей (конвенция Jupyter: a/b).
 -- markdown: ```python-фенс с пустыми строками-разделителями; python: "# %%".
 -- Курсор встаёт внутрь новой ячейки сразу в insert-режиме.
@@ -253,6 +276,24 @@ return {
         vim.api.nvim_create_autocmd("ColorScheme", {
             group = vim.api.nvim_create_augroup("MoltenOutputHl", { clear = true }),
             callback = output_hl,
+        })
+
+        -- ]c / [c — прыжки по ячейкам. Только в буферах ноутбуков: глобально
+        -- ]c/[c заняты встроенным прыжком по изменениям в diff-режиме (fugitive).
+        vim.api.nvim_create_autocmd("FileType", {
+            pattern = { "markdown", "python" },
+            group = vim.api.nvim_create_augroup("MoltenCellMotions", { clear = true }),
+            callback = function(ev)
+                if not vim.api.nvim_buf_get_name(ev.buf):match("%.ipynb$") then
+                    return
+                end
+                vim.keymap.set("n", "]c", function()
+                    goto_cell(false)
+                end, { buffer = ev.buf, silent = true, desc = "Molten: следующая ячейка" })
+                vim.keymap.set("n", "[c", function()
+                    goto_cell(true)
+                end, { buffer = ev.buf, silent = true, desc = "Molten: предыдущая ячейка" })
+            end,
         })
 
         -- В окне вывода (<leader>jO) molten ничего не мапит, выйти можно только
