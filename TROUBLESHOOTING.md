@@ -23,6 +23,45 @@ Jupyter-ядра. Причина у всех одна — см. ниже.
 - **Картинки** — image.nvim (`backend=kitty`, `processor=magick_cli` → `/opt/homebrew/bin/magick`),
   **без luarocks**.
 
+## Почему падало на Mac, а на Linux работает
+
+Один и тот же конфиг под git, но окружение разное. Причины (от главной к мелким):
+
+1. **Чистка окружения (главная).** Рабочий Mac — корпоративный, там MDM/эндпоинт-агент
+   периодически чистит каталоги, куда мы кладём venv'ы, uv-tools и kernelspec'и
+   (`~/.venvs`, `~/.local/bin`, `~/Library/Jupyter/kernels`). После чистки разом
+   отваливается всё — это и есть инцидент 2026-08-04. Домашний Linux — личный,
+   без MDM: поставил один раз, оно живёт. Что именно чистит на Mac — **не выяснено**
+   (открытый вопрос). Скрипт `setup-eda.sh` — это лечение симптома: он пересобирает
+   стёртое за один прогон, а не мешает чистке.
+
+2. **Разные пути в файловой системе.** Часть путей у Linux и Mac не совпадает —
+   если ориентироваться на чужую заметку/пример, промахиваешься:
+   | | Linux | macOS |
+   |---|---|---|
+   | kernelspec (user) | `~/.local/share/jupyter/kernels` | `~/Library/Jupyter/kernels` |
+   | ImageMagick | `/usr/bin/magick` (pacman) | `/opt/homebrew/bin/magick` (brew) |
+   | репо jupyter-utils | `~/Projects/jupyter-utils` | у тебя было `~/work/...` |
+
+   Путь к host-venv (`~/.venvs/neovim`) и `python3_host_prog` — одинаковы на обеих ОС,
+   тут расхождений нет. Скрипт разруливает kernelspec автоматически (`ipykernel install
+   --user` сам пишет в нужный для ОС каталог) и ищет jupyter-utils в обоих местах.
+
+3. **PATH до uv-tools.** jupytext ставится в `~/.local/bin`. На Linux этот каталог
+   обычно уже в PATH → `jupytext` виден. На Mac после чистки/переустановки uv его
+   бин-каталог может быть не в PATH → jupytext «пропадает» (exit 127, см. проблему 2),
+   хотя формально установлен. Проверка: `uv tool dir --bin` и что этот путь в PATH.
+
+4. **Рассинхрон имени ядра в заметках.** В старой версии этого файла ядро
+   регистрировалось как `"jupyter-utils (polars)"`, а конфиг (`jupytext.lua`) ждёт
+   `name=jupyter-utils` / `display_name="Python (jupyter-utils)"`. На Linux ядро уже
+   стояло правильно и работало; при ручном восстановлении на Mac по старой команде
+   имя разъезжалось. Скрипт регистрирует строго то, что ждёт конфиг.
+
+**Итого:** Linux «просто работает» не потому что конфиг другой, а потому что там
+никто не стирает окружение и пути совпали. На Mac те же шаги нужно (пере)накатывать —
+для этого и есть `setup-eda.sh`.
+
 ## Проблемы и фиксы
 
 ### 1. image.nvim — `Failed to spawn process luarocks`
@@ -59,27 +98,28 @@ Jupyter-ядра. Причина у всех одна — см. ниже.
   ```
 - **Проверка:** ядро в `~/Library/Jupyter/kernels/jupyter-utils`; `:MoltenInit` показывает «jupyter-utils (polars)».
 
-## Быстрое восстановление (если снова снесёт)
+## Быстрое восстановление / первичная настройка
 
-По порядку:
+Один скрипт для Linux и macOS — идемпотентный, можно запускать повторно:
 
 ```sh
-# 1. jupytext CLI (uv-tool → ~/.local/bin/jupytext)
-uv tool install jupytext
+~/.config/nvim/scripts/setup-eda.sh
+```
 
-# 2. molten host-venv + провайдер-зависимости
-uv venv ~/.venvs/neovim
-uv pip install --python ~/.venvs/neovim/bin/python pynvim jupyter_client nbformat
+Делает всё по порядку: jupytext CLI → host-venv `~/.venvs/neovim` → ядро
+jupyter-utils → пересборка rplugin-манифеста (force-load molten) → проверка `magick`.
 
-# 3. ядро jupyter-utils
-~/work/jupyter-utils/.venv/bin/python -m ipykernel install --user \
-  --name jupyter-utils --display-name "jupyter-utils (polars)"
+Путь к репозиторию jupyter-utils определяется автоматически (`~/Projects` или
+`~/work`). Если лежит в другом месте:
 
-# 4. пересобрать remote-plugin манифест (с force-load molten)
-nvim --headless "+Lazy! load molten-nvim" "+UpdateRemotePlugins" +qa
+```sh
+JUPYTER_UTILS_DIR=/path/to/jupyter-utils ~/.config/nvim/scripts/setup-eda.sh
 ```
 
 Потом перезапусти nvim. Фикс image.nvim (`rocks = false`) уже в конфиге под git — трогать не нужно.
+
+> Имя ядра: `name=jupyter-utils`, `display_name="Python (jupyter-utils)"` — должно
+> совпадать с `lua/plugins/jupytext.lua`. Скрипт регистрирует именно так.
 
 ## Версии на момент фикса (2026-08-04)
 nvim 0.12.4 · uv 0.11.25 · jupytext 1.19.5 · pynvim 0.6.0 · ipykernel 7.3.0 · polars 1.42.1
