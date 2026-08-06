@@ -94,9 +94,9 @@ Jupyter-ядра. Причина у всех одна — см. ниже.
 - **Фикс:**
   ```sh
   ~/work/jupyter-utils/.venv/bin/python -m ipykernel install --user \
-    --name jupyter-utils --display-name "jupyter-utils (polars)"
+    --name jupyter-utils --display-name "Python (jupyter-utils)"
   ```
-- **Проверка:** ядро в `~/Library/Jupyter/kernels/jupyter-utils`; `:MoltenInit` показывает «jupyter-utils (polars)».
+- **Проверка:** ядро в `~/Library/Jupyter/kernels/jupyter-utils`; `:MoltenInit` показывает «Python (jupyter-utils)».
 
 ### 5. `%%sql`-ячейка открывается как ```sql и не выполняется
 - **Симптом:** в буфере ячейка выглядит как ` ```sql magic_args="df <<" `, строки `%%sql` нет; `<leader>jc` → ядро падает на SQL как на Python (`SyntaxError`).
