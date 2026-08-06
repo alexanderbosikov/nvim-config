@@ -208,8 +208,22 @@ return {
         vim.g.molten_virt_text_output = true
         vim.g.molten_virt_lines_off_by_1 = false
         vim.g.molten_auto_open_output = false
+        -- вывод — virt_text, выделить/скопировать его нельзя (это не текст
+        -- буфера). Реальный текст живёт в скрытом буфере окна вывода, поэтому
+        -- <leader>jO должен сразу ВХОДИТЬ в окно: дефолтный "open_then_enter"
+        -- на первом вызове окно только открывает, а из-за
+        -- output_win_hide_on_leave оно скрывается при уходе курсора — второй
+        -- вызов снова лишь открывает, войти так невозможно
+        vim.g.molten_enter_output_behavior = "open_and_enter"
         vim.g.molten_wrap_output = true
-        vim.g.molten_output_win_max_height = 20
+        -- вывод не обрезаем (дефолт — 12 строк и «󰁅 N More Lines»): нужны и
+        -- таблицы на сотню строк, и высокие subplots — под картинки molten
+        -- резервирует те же virt-строки, поэтому лимит рубил и графики.
+        -- Если гигантский вывод станет мешать скроллу — уменьшить это число.
+        vim.g.molten_virt_text_max_lines = 999999
+        -- окно вывода (<leader>jO) — во всю доступную высоту: molten всё равно
+        -- ограничивает его высотой окна ноутбука, внутри можно скроллить
+        vim.g.molten_output_win_max_height = 999999
     end,
     config = function()
         -- вывод virt-text по умолчанию линкуется на Comment и сливается с
@@ -239,6 +253,24 @@ return {
         vim.api.nvim_create_autocmd("ColorScheme", {
             group = vim.api.nvim_create_augroup("MoltenOutputHl", { clear = true }),
             callback = output_hl,
+        })
+
+        -- В окне вывода (<leader>jO) molten ничего не мапит, выйти можно только
+        -- `:q` / <C-w>q / <C-w>p — руки к этому не привыкли. Даём q и <Esc>.
+        -- Буфер окна вывода — обычный scratch (ft=molten_output), так что внутри
+        -- работает и выделение с `y` / `"+y` / `:%y+`.
+        vim.api.nvim_create_autocmd("FileType", {
+            pattern = "molten_output",
+            group = vim.api.nvim_create_augroup("MoltenOutputQuit", { clear = true }),
+            callback = function(ev)
+                for _, lhs in ipairs({ "q", "<Esc>" }) do
+                    vim.keymap.set("n", lhs, "<cmd>close<CR>", {
+                        buffer = ev.buf,
+                        silent = true,
+                        desc = "Molten: закрыть окно вывода",
+                    })
+                end
+            end,
         })
 
         local map = function(lhs, rhs, desc, mode)
