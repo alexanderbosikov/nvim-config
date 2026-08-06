@@ -1,6 +1,33 @@
 
 vim.keymap.set("n", "<leader>e", vim.cmd.Ex)
 
+-- Две директории, между которыми прыгаем чаще всего. Держим здесь: путь нужен
+-- и тогглу cwd, и телескоп-пикерам в plugins/telescope.lua.
+vim.g.work_dirs = {
+  sandbox = vim.fn.expand("~/work/sandbox"),
+  dbt = vim.fn.expand("~/work/dbt-dwh"),
+}
+
+-- <leader>cc — тоггл cwd sandbox <-> dbt-dwh. Меняет cwd глобально, значит
+-- влияет на <leader>ff, :e, :Ex и относительные пути (в т.ч. @dbee-file в
+-- <leader>dr) — то есть переезжаем в другой проект целиком.
+-- Для «подсмотреть файл в соседнем проекте, не уезжая» есть <leader>fs/<leader>fd.
+vim.keymap.set("n", "<leader>cc", function()
+  local dirs = vim.g.work_dirs
+  -- в dbt-dwh (или его подкаталоге) → уходим в sandbox, иначе → в dbt-dwh
+  local in_dbt = vim.startswith(vim.fn.getcwd(), dirs.dbt)
+  local target = in_dbt and dirs.sandbox or dirs.dbt
+  if vim.fn.isdirectory(target) == 0 then
+    vim.notify("нет такой директории: " .. target, vim.log.levels.ERROR)
+    return
+  end
+  vim.cmd.cd(target)
+  vim.notify("cwd: " .. vim.fn.fnamemodify(target, ":~"))
+end, { desc = "Toggle cwd: sandbox <-> dbt-dwh" })
+
+-- <leader>c- — вернуться в предыдущий cwd (встроенный :cd -, как в шелле)
+vim.keymap.set("n", "<leader>c-", "<Cmd>cd -<CR><Cmd>pwd<CR>", { desc = "cd to previous dir" })
+
 -- j/k move by display (wrapped) line when no count is given; "5j" etc. still
 -- moves by logical line. No-op where wrap is off (gj/gk == j/k there).
 vim.keymap.set("n", "j", "v:count == 0 ? 'gj' : 'j'", { expr = true, silent = true })
