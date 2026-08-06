@@ -27,6 +27,9 @@ end
 
 -- Границы кода ячейки в markdown-представлении jupytext: fenced-блок
 -- ```python ... ``` вокруг курсора. nil — курсор вне код-ячейки.
+-- Код-ячейка — только ```python: фенсы с другим языком в этом буфере — это
+-- либо примеры кода внутри markdown-ячейки, либо магика, которую мы не
+-- нормализовали (см. custom/ipynb_magics.lua); ядру их отдавать нельзя.
 local function fence_cell_range()
     local cur = vim.api.nvim_win_get_cursor(0)[1]
     local total = vim.api.nvim_buf_line_count(0)
@@ -36,7 +39,7 @@ local function fence_cell_range()
     for l = cur, 1, -1 do
         local fence = vim.fn.getline(l):match("^```(%S*)")
         if fence then
-            if fence ~= "" then
+            if fence == "python" then
                 open_l = l -- открывающий фенс (в т.ч. курсор прямо на нём)
             end
             break
@@ -87,7 +90,7 @@ local function eval_cell()
     eval_range(body_start, body_end)
 end
 
--- Тела всех код-ячеек буфера (по порядку). markdown — фенсы с языком;
+-- Тела всех код-ячеек буфера (по порядку). markdown — ```python-фенсы;
 -- python percent — интервалы между "# %%"-маркерами ([markdown]-ячейки
 -- пропускаются: там одни комментарии).
 local function collect_cells()
@@ -98,7 +101,7 @@ local function collect_cells()
         for l = 1, total do
             local line = vim.fn.getline(l)
             if not open then
-                if line:match("^```%S") then
+                if line:match("^```(%S+)") == "python" then
                     open = l
                 end
             elseif line:match("^```%s*$") then
