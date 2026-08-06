@@ -213,10 +213,33 @@ function M.page(offset)
     kernel_request(state.expr, offset, render)
 end
 
+-- Имя DataFrame текущей %%sql-ячейки, если курсор в ней. nb_utils кладёт
+-- результат в user_ns[df_name] либо в df_temp (nb_utils/jupyter/magics.py):
+--   %%sql df_name=orders limit=0   ->  orders
+--   %%sql                          ->  df_temp
+-- Идём вверх от курсора: строка магики — первая строка тела ячейки, поэтому
+-- встретим её раньше границы ячейки (```-фенс или "# %%").
+local function sql_cell_df()
+    local cur = vim.api.nvim_win_get_cursor(0)[1]
+    for l = cur, 1, -1 do
+        local line = vim.fn.getline(l)
+        local args = line:match("^%%%%sql%s*(.*)$")
+        if args then
+            return args:match("df_name=(%S+)") or "df_temp"
+        end
+        if line:match("^```") or line:match("^#%s*%%%%") then
+            return nil -- дошли до начала ячейки, магики не было
+        end
+    end
+    return nil
+end
+
 -- точка входа: спросить выражение и показать первую страницу
 function M.open()
     state.src_win = vim.api.nvim_get_current_win()
-    local default = vim.fn.expand("<cword>")
+    -- в %%sql-ячейке <cword> — это слово SQL-запроса под курсором, толку от
+    -- него нет: имя результата берём из магики
+    local default = sql_cell_df() or vim.fn.expand("<cword>")
     if default == "" then
         default = "df_temp"
     end
