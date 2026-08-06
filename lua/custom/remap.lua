@@ -1,5 +1,5 @@
 
-vim.keymap.set("n", "<leader>e", vim.cmd.Ex)
+-- <leader>e — yazi (plugins/yazi.lua). netrw никуда не делся: :Ex / :Explore.
 
 -- Две директории, между которыми прыгаем чаще всего. Держим здесь: путь нужен
 -- и тогглу cwd, и телескоп-пикерам в plugins/telescope.lua.
