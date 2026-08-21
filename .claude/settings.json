@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__jupyter__read_cell",
+      "mcp__jupyter__read_notebook",
+      "mcp__jupyter__list_kernels",
+      "mcp__jupyter__list_files",
+      "mcp__jupyter__list_notebooks",
+      "mcp__claude_ai_Atlassian_Rovo__getJiraIssue",
+      "mcp__claude_ai_Atlassian_Rovo__searchJiraIssuesUsingJql",
+      "mcp__claude_ai_Atlassian_Rovo__getAccessibleAtlassianResources",
+      "mcp__claude_ai_Atlassian_Rovo__getTransitionsForJiraIssue",
+      "Bash(sqlfluff lint *)"
+    ]
+  }
+}
