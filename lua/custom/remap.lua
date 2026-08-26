@@ -30,6 +30,8 @@ vim.keymap.set("n", "<leader>x", "<cmd>!chmod +x %<CR>", { silent = true })
 -- id of the most recently launched query, for <leader>dk (cancel).
 local last_call_id = nil
 
+local scratch = require("custom.sql_scratch")
+
 -- same as require("dbee").execute(), minus the trailing dbee.open() call,
 -- so running a query doesn't yank focus into the result+history layout.
 -- watch the statusline and open it yourself with <leader>do when it's done.
@@ -46,19 +48,24 @@ local function dbee_execute_silent(query)
 end
 
 vim.keymap.set("n", "<leader>dr", function()
+  -- черновик попадёт на диск, когда dbee отчитается об успехе (no-op для
+  -- обычных файлов)
+  scratch.track_run(0)
   local query = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
   -- tag the query with the file path (relative to nvim's cwd) so the dbee
   -- history shows the path instead of the SQL. The marker is a plain SQL
   -- comment (harmless for execution); dbee_call_log_patch renders it as the
-  -- bare path with no "--" and no trailing SQL.
-  local relpath = vim.fn.expand("%:.")
-  if relpath ~= "" then
-    query = "-- @dbee-file: " .. relpath .. "\n" .. query
+  -- bare path with no "--" and no trailing SQL. Для черновиков берём короткое
+  -- "scratch/<файл>": они лежат вне cwd, и "%:." дал бы путь от корня.
+  local label = scratch.dbee_label(0) or vim.fn.expand("%:.")
+  if label ~= "" then
+    query = "-- @dbee-file: " .. label .. "\n" .. query
   end
   dbee_execute_silent(query)
 end, { desc = "DBee: run current file" })
 
 vim.keymap.set("v", "<leader>dr", function()
+  scratch.track_run(0)
   vim.cmd('noautocmd normal! "vy')
   dbee_execute_silent(vim.fn.getreg("v"))
 end, { desc = "DBee: run selection" })
@@ -95,6 +102,21 @@ end, { desc = "DBee: show connections drawer" })
 vim.keymap.set("n", "<leader>do", function()
   require("dbee").toggle()
 end, { desc = "DBee: toggle result+history layout" })
+
+-- Одноразовые запросы (custom/sql_scratch.lua): файл в ~/work/sql-scratch,
+-- имя = дата-время + то, что введёшь в промпте. Сохраняется сам.
+vim.keymap.set("n", "<leader>dn", function()
+  scratch.new()
+end, { desc = "SQL scratch: новый черновик" })
+vim.keymap.set("n", "<leader>dR", function()
+  scratch.rename()
+end, { desc = "SQL scratch: переименовать текущий" })
+vim.keymap.set("n", "<leader>df", function()
+  scratch.pick()
+end, { desc = "SQL scratch: поиск по черновикам" })
+vim.keymap.set("n", "<leader>dg", function()
+  scratch.grep()
+end, { desc = "SQL scratch: grep по черновикам" })
 vim.keymap.set("i", "jk", "<Esc>")
 
 for _, mode in ipairs({ "n", "i", "v" }) do
