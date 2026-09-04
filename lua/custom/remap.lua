@@ -103,6 +103,31 @@ vim.keymap.set("n", "<leader>do", function()
   require("dbee").toggle()
 end, { desc = "DBee: toggle result+history layout" })
 
+-- В буфере результата dbee столбцы разделены "│" (U+2502), а не ASCII "|", так
+-- что t|/f| промахиваются. Здесь читаем пайп как разделитель таблицы: работает
+-- и как motion внутри <C-v>-выделения, и как цель оператора (dt|, y2f|).
+-- В sql-файлах не трогаем: там "|" настоящий (Redshift-конкатенация ||).
+local function map_table_pipe(bufnr)
+  for _, motion in ipairs({ "t", "f", "T", "F" }) do
+    vim.keymap.set({ "n", "x", "o" }, motion .. "|", motion .. "│", { buffer = bufnr })
+  end
+end
+
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "dbee",
+  callback = function(args)
+    map_table_pipe(args.buf)
+  end,
+})
+
+-- буфер результата создаётся внутри dbee.setup(), то есть до этого файла, и
+-- своё FileType-событие уже отстрелял — донастраиваем что есть
+for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+  if vim.bo[bufnr].filetype == "dbee" then
+    map_table_pipe(bufnr)
+  end
+end
+
 -- Одноразовые запросы (custom/sql_scratch.lua): файл в ~/work/sql-scratch,
 -- имя = дата-время + то, что введёшь в промпте. Сохраняется сам.
 vim.keymap.set("n", "<leader>dn", function()
