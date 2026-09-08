@@ -52,6 +52,40 @@ return {
             end,
         })
 
+        -- ФИКС устаревшего кэша. jupytext.nvim кладёт результат конвертации в <имя>.md
+        -- рядом с ноутбуком. Файл, созданный при открытии, он считает временным и убирает
+        -- на BufUnload, но `should_delete = not jupytext_file_exists` (init.lua:105): если
+        -- .md уже лежал рядом — создан руками, записан при :w и не убранный из-за
+        -- аварийного выхода, — он считается «своим». А значит остаётся навсегда и с этого
+        -- момента читается ВМЕСТО ноутбука: конвертация запускается, только когда файла
+        -- нет (init.lua:81), даты никто не сверяет.
+        --
+        -- Дальше ноутбук, изменённый снаружи (Jupyter Lab живёт у нас неделями), в nvim
+        -- невидим: в буфере старый снимок, а :w затирает им ноутбук через
+        -- `jupytext --update`. Тексты ячеек теряются, outputs остаются — потеря тихая.
+        -- Так и случилось: кэш от 4 сентября против ноутбука от 7-го, и трое суток правок
+        -- показывались как «ничего не изменилось».
+        --
+        -- Поэтому кэш старше ноутбука сносим до чтения. Плата — конвертация на открытии,
+        -- около 150 мс; цена ошибки несопоставима.
+        --
+        -- Регистрируется ДО setup(): автокоманды одного события идут в порядке
+        -- регистрации, а нам надо успеть до чтения.
+        vim.api.nvim_create_autocmd("BufReadCmd", {
+            pattern = "*.ipynb",
+            group = vim.api.nvim_create_augroup("JupytextDropStaleCache", { clear = true }),
+            callback = function(ev)
+                local notebook = vim.fn.resolve(vim.fn.expand(ev.match))
+                if vim.fn.filereadable(notebook) == 0 then
+                    return -- нового файла ещё нет: им занимается JupytextSeedNew
+                end
+                local cache = vim.fn.fnamemodify(notebook, ":r") .. ".md"
+                if vim.fn.filereadable(cache) == 1 and vim.fn.getftime(cache) < vim.fn.getftime(notebook) then
+                    vim.fn.delete(cache)
+                end
+            end,
+        })
+
         require("jupytext").setup({
             -- "markdown" → буфер = markdown: md-ячейки рендерит render-markdown,
             -- код-ячейки — fenced ```python-блоки (подсветка — treesitter-инъекции,
