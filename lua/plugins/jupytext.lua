@@ -56,8 +56,10 @@ return {
             -- "markdown" → буфер = markdown: md-ячейки рендерит render-markdown,
             -- код-ячейки — fenced ```python-блоки (подсветка — treesitter-инъекции,
             -- красивые блоки — тоже render-markdown). Ячейки с магикой языка
-            -- (%%sql) jupytext переписывает в ```sql-фенс — нормализуем обратно,
-            -- см. автокоманду ниже и custom/ipynb_magics.lua.
+            -- (%%sql) jupytext показывает как ```sql-фенс, а аргументы магики кладёт
+            -- в info-строку: `magic_args="df_name=orders"`. Так и оставляем —
+            -- jupyter.nvim эту форму понимает и собирает `%%sql` обратно при отправке
+            -- ядру, а в .ipynb магика возвращается в тело сама, силами jupytext.
             style = "markdown",
             -- НЕ "auto": auto берёт расширение языка (py), а формата py:markdown
             -- у jupytext нет — упадёт при конвертации
@@ -65,33 +67,6 @@ return {
             force_ft = "markdown", -- иначе ft будет python (из metadata.language)
         })
 
-        -- ФИКС %%sql-ячеек: jupytext выносит язык магики в info-строку фенса
-        -- (```sql magic_args="df <<") и стирает саму строку `%%sql` из тела —
-        -- molten тогда отдаёт ядру чистый SQL и получает SyntaxError.
-        -- Возвращаем магику в тело ячейки (custom/ipynb_magics.lua).
-        -- Автокоманда зарегистрирована ПОСЛЕ setup() — значит выполняется после
-        -- BufReadCmd самого jupytext.nvim, когда буфер уже заполнен.
-        vim.api.nvim_create_autocmd("BufReadCmd", {
-            pattern = "*.ipynb",
-            group = vim.api.nvim_create_augroup("JupytextNormalizeMagics", { clear = true }),
-            callback = function(ev)
-                if vim.bo[ev.buf].filetype ~= "markdown" then
-                    return -- percent-представление магики не трогает
-                end
-                local lines = vim.api.nvim_buf_get_lines(ev.buf, 0, -1, false)
-                local fixed = require("custom.ipynb_magics").normalize(lines)
-                if not fixed then
-                    return
-                end
-                -- undolevels=-1: правка едет в тот же undo-блок, что и чтение
-                -- буфера, чтобы первый `u` не откатывал нормализацию
-                local levels = vim.o.undolevels
-                vim.o.undolevels = -1
-                vim.api.nvim_buf_set_lines(ev.buf, 0, -1, false, fixed)
-                vim.o.undolevels = levels
-                vim.bo[ev.buf].modified = false
-            end,
-        })
 
         -- ФИКС скролла под выводом molten: вывод последней ячейки — это
         -- virt_lines под последней реальной строкой, курсору туда не попасть.
