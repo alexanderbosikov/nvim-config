@@ -1,14 +1,15 @@
 -- Рендер картинок в терминале через kitty graphics protocol (ghostty умеет,
 -- tmux — через allow-passthrough, уже включён в tmux.conf).
--- Основной потребитель — molten (molten_image_provider = "image.nvim").
+-- Потребитель — jupyter.nvim: он сам решает, что и когда рисовать.
 return {
     "3rd/image.nvim",
     opts = {
         backend = "kitty",
         processor = "magick_cli", -- системный ImageMagick CLI, без luarocks/hererocks
         integrations = {
-            -- только molten: картинки в markdown/neorg-буферах не трогаем,
-            -- чтобы не пересекаться с render-markdown
+            -- своих интеграций не надо: картинки рисует jupyter.nvim по своим
+            -- правилам, а автоматический рендер в markdown пересекался бы
+            -- с render-markdown
             markdown = { enabled = false },
             neorg = { enabled = false },
         },

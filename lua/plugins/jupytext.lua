@@ -102,27 +102,5 @@ return {
         })
 
 
-        -- ФИКС скролла под выводом molten: вывод последней ячейки — это
-        -- virt_lines под последней реальной строкой, курсору туда не попасть.
-        -- Гарантируем пустую строку в конце буфера — j доводит до неё, и вывод
-        -- рендерится над курсором. modified не выставляем: строка «служебная».
-        -- Только python-представление: в markdown у последней ячейки и так есть
-        -- закрывающий ```-фенс под кодом, а лишняя пустая строка при сохранении
-        -- превращается в пустую markdown-ячейку в ipynb.
-        vim.api.nvim_create_autocmd("FileType", {
-            pattern = "python",
-            group = vim.api.nvim_create_augroup("JupytextTrailingLine", { clear = true }),
-            callback = function(ev)
-                if not vim.api.nvim_buf_get_name(ev.buf):match("%.ipynb$") then
-                    return
-                end
-                local n = vim.api.nvim_buf_line_count(ev.buf)
-                local last = vim.api.nvim_buf_get_lines(ev.buf, n - 1, n, false)[1]
-                if last ~= "" then
-                    vim.api.nvim_buf_set_lines(ev.buf, n, n, false, { "" })
-                    vim.bo[ev.buf].modified = false
-                end
-            end,
-        })
     end,
 }
