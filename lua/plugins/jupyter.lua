@@ -61,6 +61,13 @@ return {
                 show_toc = "<leader>nT", -- оглавление: заголовки и ячейки со статусом
                 open_table = "<leader>nt",
                 edit_cell_args = "<leader>ng", -- параметры %%sql: спросит, подставив нынешние
+                -- перестройка ячеек; m и y — как в командном режиме Jupyter
+                split_cell = "<leader>ns",
+                merge_cell = "<leader>nM",
+                move_cell_up = "<leader>nK",
+                move_cell_down = "<leader>nJ",
+                cell_to_markdown = "<leader>nm",
+                cell_to_code = "<leader>ny",
                 -- листание истории прогонов ячейки: ]r / [r свободны
                 prev_run = "[r",
                 next_run = "]r",
