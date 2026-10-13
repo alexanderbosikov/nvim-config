@@ -1,5 +1,27 @@
--- Soft-wrap long lines at word boundaries instead of scrolling horizontally;
--- wrapped continuation keeps the original line's indent.
-vim.opt_local.wrap = true
+-- Широкие таблицы в md читать с переносом невозможно: строка таблицы уезжает
+-- в несколько виртуальных, колонки перестают совпадать по вертикали. Поэтому
+-- здесь, в отличие от text, перенос выключен — строка таблицы остаётся строкой
+-- на экране, а вбок ходим скроллом.
+--
+-- Побочный эффект, про который стоит знать: render-markdown гасит рендер, когда
+-- окно проскроллено вбок (leftcol ~= 0, core/ui.lua). Уехал вправо по таблице —
+-- видишь сырой markdown с "|". Колонки при этом выровнены ровно как в файле.
+--
+-- linebreak/breakindent оставлены: они ни на что не влияют при nowrap, но сразу
+-- работают, когда перенос включают обратно тогглом ниже.
+vim.opt_local.wrap = false
 vim.opt_local.linebreak = true
 vim.opt_local.breakindent = true
+
+-- Запас по горизонтали вокруг курсора: соседняя колонка видна до того, как
+-- упрёшься в край. Шаг самого скролла (sidescroll) не трогаем — в nvim он и так
+-- 1, по колонке, а не по полэкрана, как в vim; к тому же опция глобальная,
+-- оконного варианта у неё нет.
+vim.opt_local.sidescrolloff = 4
+
+-- Для прозы перенос всё-таки нужен. Маппинг буферный: за пределами markdown
+-- <leader>uw не занят.
+vim.keymap.set("n", "<leader>uw", function()
+  vim.opt_local.wrap = not vim.wo.wrap
+  vim.notify("wrap: " .. (vim.wo.wrap and "on" or "off"))
+end, { buffer = true, desc = "Markdown: перенос строк вкл/выкл" })
