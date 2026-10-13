@@ -15,64 +15,53 @@ return {
 		local capabilities = require("cmp_nvim_lsp").default_capabilities()
 
 		require("mason").setup()
+
+		-- mason-lspconfig v2 серверы включает сам (automatic_enable) и `handlers` больше
+		-- не читает: настройки серверов — через vim.lsp.config, иначе они молча не применяются
+		vim.lsp.config("*", { capabilities = capabilities })
+		vim.lsp.config("pyright", {
+			-- uv не активирует venv: сами подсовываем python окружения,
+			-- иначе pyright берёт системный python без зависимостей
+			-- (polars/nb_utils и т.п. — пустой автокомплит).
+			-- Каскад: .venv проекта, иначе venv jupyter-utils — ноутбуки
+			-- в любых папках бегут на ядре jupyter-utils с nb_utils.
+			before_init = function(_, config)
+				local candidates = {
+					config.root_dir and (config.root_dir .. "/.venv/bin/python"),
+					vim.fn.expand("~/work/jupyter-utils/.venv/bin/python"),
+				}
+				for _, python in ipairs(vim.tbl_filter(function(c) return c end, candidates)) do
+					if vim.fn.executable(python) == 1 then
+						config.settings = config.settings or {}
+						config.settings.python = config.settings.python or {}
+						config.settings.python.pythonPath = python
+						break
+					end
+				end
+			end,
+		})
+		vim.lsp.config("lua_ls", {
+			settings = { Lua = { diagnostics = { globals = { "vim" } } } },
+		})
+		vim.lsp.config("jsonls", {
+			settings = {
+				json = {
+					schemas = require("schemastore").json.schemas(),
+					validate = { enable = true },
+				},
+			},
+		})
+		vim.lsp.config("yamlls", {
+			settings = {
+				yaml = {
+					schemaStore = { enable = false, url = "" },
+					schemas = require("schemastore").yaml.schemas(),
+				},
+			},
+		})
+
 		require("mason-lspconfig").setup({
 			ensure_installed = { "lua_ls", "pyright", "ruff", "jsonls", "yamlls" },
-			handlers = {
-				function(server)
-					require("lspconfig")[server].setup({ capabilities = capabilities })
-				end,
-				["pyright"] = function()
-					require("lspconfig").pyright.setup({
-						capabilities = capabilities,
-						-- uv не активирует venv: сами подсовываем python окружения,
-						-- иначе pyright берёт системный python без зависимостей
-						-- (polars/nb_utils и т.п. — пустой автокомплит).
-						-- Каскад: .venv проекта, иначе venv jupyter-utils — ноутбуки
-						-- в любых папках бегут на ядре jupyter-utils с nb_utils.
-						before_init = function(_, config)
-							local candidates = {
-								config.root_dir .. "/.venv/bin/python",
-								vim.fn.expand("~/Projects/jupyter-utils/.venv/bin/python"),
-							}
-							for _, python in ipairs(candidates) do
-								if vim.fn.executable(python) == 1 then
-									config.settings.python = config.settings.python or {}
-									config.settings.python.pythonPath = python
-									break
-								end
-							end
-						end,
-					})
-				end,
-				["lua_ls"] = function()
-					require("lspconfig").lua_ls.setup({
-						capabilities = capabilities,
-						settings = { Lua = { diagnostics = { globals = { "vim" } } } },
-					})
-				end,
-				["jsonls"] = function()
-					require("lspconfig").jsonls.setup({
-						capabilities = capabilities,
-						settings = {
-							json = {
-								schemas = require("schemastore").json.schemas(),
-								validate = { enable = true },
-							},
-						},
-					})
-				end,
-				["yamlls"] = function()
-					require("lspconfig").yamlls.setup({
-						capabilities = capabilities,
-						settings = {
-							yaml = {
-								schemaStore = { enable = false, url = "" },
-								schemas = require("schemastore").yaml.schemas(),
-							},
-						},
-					})
-				end,
-			},
 		})
 
 		-- автодополнение
@@ -82,12 +71,20 @@ return {
 		-- dbt/jinja snippets for sql files (ref, source, config, if, for, set)
 		require("custom.dbt_snippets")
 
+		-- таблицы и колонки из кэша каталога nb_utils для sql-ячеек ноутбуков:
+		-- cmp-dbee там не работает (смотрит на filetype буфера, а он markdown)
+		cmp.register_source("nb_catalog", require("custom.cmp_catalog").source.new())
+		-- ключевые слова, операторы и функции Redshift (статический список)
+		cmp.register_source("redshift", require("custom.cmp_redshift").source.new())
+
 		cmp.setup({
 			snippet = {
 				expand = function(args)
 					luasnip.lsp_expand(args.body)
 				end,
 			},
+			-- первый пункт меню выделен сразу (без noselect), поэтому первое <C-n> ведёт на второй
+			completion = { completeopt = "menu,menuone" },
 			mapping = cmp.mapping.preset.insert({
 				["<C-p>"] = cmp.mapping.select_prev_item({ behavior = cmp.SelectBehavior.Select }),
 				["<C-n>"] = cmp.mapping.select_next_item({ behavior = cmp.SelectBehavior.Select }),
@@ -112,8 +109,10 @@ return {
 			}),
 			sources = {
 				{ name = "nvim_lsp" },
+				{ name = "nb_catalog" }, -- имена таблиц/колонок из кэша nb_utils (sql внутри ноутбука)
 				{ name = "luasnip" },
 				{ name = "cmp-dbee" }, -- table/column completion from the active dbee connection (sql)
+				{ name = "redshift" }, -- keywords/functions Redshift (sql и sql-ячейки ноутбука)
 				{ name = "buffer" },
 				{ name = "path" },
 			},
