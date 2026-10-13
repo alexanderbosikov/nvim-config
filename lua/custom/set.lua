@@ -3,6 +3,12 @@ vim.opt.guicursor = ""
 vim.opt.nu = true
 vim.opt.relativenumber = true
 
+-- netrw выставляет свои настройки буфера через setlocal, а `number` — опция ОКОННАЯ:
+-- открыл файл из :Ex в том же окне, и номера строк пропали, хотя глобально они включены.
+-- Ловится это `:verbose setlocal number?` — покажет netrw.vim. Поэтому в его же настройках
+-- номера оставляем включёнными; остальное — дефолт netrw.
+vim.g.netrw_bufsettings = "noma nomod nu rnu nobl nowrap ro"
+
 vim.opt.tabstop = 4
 vim.opt.softtabstop = 4
 vim.opt.shiftwidth = 4

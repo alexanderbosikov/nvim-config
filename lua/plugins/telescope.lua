@@ -15,10 +15,10 @@ return {
 	local builtin = require('telescope.builtin')
 	vim.keymap.set('n', '<leader>ff', builtin.find_files, {})
 
-	-- Поиск в конкретной рабочей директории, не меняя cwd: s = sandbox,
-	-- d = dbt-dwh. Заглавная (<leader>Fs/<leader>Fd) — live_grep по содержимому.
+	-- Поиск в конкретной рабочей директории, не меняя cwd: a = analysis,
+	-- d = dbt-dwh. Заглавная (<leader>Fa/<leader>Fd) — live_grep по содержимому.
 	-- Пути берём из vim.g.work_dirs (custom/remap.lua).
-	for suffix, key in pairs({ s = 'sandbox', d = 'dbt' }) do
+	for suffix, key in pairs({ a = 'analysis', d = 'dbt' }) do
 		local dir = function() return vim.g.work_dirs[key] end
 		vim.keymap.set('n', '<leader>f' .. suffix, function()
 			builtin.find_files({ cwd = dir() })

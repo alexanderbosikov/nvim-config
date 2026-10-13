@@ -2,11 +2,11 @@
 -- <leader>e — yazi (plugins/yazi.lua). netrw никуда не делся: :Ex / :Explore.
 
 -- Две директории, между которыми прыгаем чаще всего. Нужны телескоп-пикерам
--- <leader>fs/<leader>fd и <leader>Fs/<leader>Fd (plugins/telescope.lua).
+-- <leader>fa/<leader>fd и <leader>Fa/<leader>Fd (plugins/telescope.lua).
 -- Тоггла cwd больше нет: префикс <leader>c отдан Claude (plugins/claudecode.lua),
 -- менять каталог целиком — вручную через :cd (и :cd - назад).
 vim.g.work_dirs = {
-  sandbox = vim.fn.expand("~/work/sandbox"),
+  analysis = vim.fn.expand("~/work/analysis"),
   dbt = vim.fn.expand("~/work/dbt-dwh"),
 }
 
@@ -128,7 +128,7 @@ for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
   end
 end
 
--- Одноразовые запросы (custom/sql_scratch.lua): файл в ~/work/sql-scratch,
+-- Одноразовые запросы (custom/sql_scratch.lua): файл в ~/work/tools/sql-scratch,
 -- имя = дата-время + то, что введёшь в промпте. Сохраняется сам.
 vim.keymap.set("n", "<leader>dn", function()
   scratch.new()

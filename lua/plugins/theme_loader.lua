@@ -14,6 +14,26 @@ local function omarchy_colorscheme()
   return content:match('colorscheme%s*=%s*["\']([^"\']+)["\']')
 end
 
+-- Поправки поверх любой темы, переживают горячую смену (omarchy):
+--   - неиспользуемое имя (`DiagnosticUnnecessary`) тема красит почти в цвет фона, и
+--     `import polars as pl` читается как дыра. Оставляем цвет синтаксиса, только пунктир;
+--   - в части тем (tokyonight) имя модуля того же цвета, что `import`, и строка импорта
+--     сливается в одно пятно. Тогда имя модуля — обычным цветом переменной.
+local function tweak_theme()
+  vim.api.nvim_set_hl(0, "DiagnosticUnnecessary", { underdotted = true })
+  local function fg(name)
+    return vim.api.nvim_get_hl(0, { name = name, link = false }).fg
+  end
+  if fg("@module") ~= nil and fg("@module") == fg("@keyword.import") then
+    vim.api.nvim_set_hl(0, "@module", { link = "@variable" })
+  end
+end
+
+vim.api.nvim_create_autocmd("ColorScheme", {
+  group = vim.api.nvim_create_augroup("ThemeTweaks", { clear = true }),
+  callback = tweak_theme,
+})
+
 local function apply_theme()
   local cs = omarchy_colorscheme() or FALLBACK_COLORSCHEME
   pcall(vim.cmd.colorscheme, cs)

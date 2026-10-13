@@ -25,8 +25,10 @@ require("lazy").setup({
   -- Configure any other settings here. See the documentation for more details.
   -- colorscheme that will be used when installing plugins.
   install = { colorscheme = { "habamax" } },
-  -- automatically check for plugin updates
-  checker = { enabled = true },
+  -- Проверять обновления плагинов молча: notify = false убирает всплывашку
+  -- "Plugin Updates" при каждом старте. Список доступных обновлений никуда
+  -- не девается — он виден в :Lazy.
+  checker = { enabled = true, notify = false },
   -- image.nvim рендерит через magick_cli (см. plugins/image.lua), luarocks не нужен.
   -- hererocks не собран (нет бинаря luarocks) → lazy падал на сборке rockspec. Отключаем rocks.
   rocks = { enabled = false },
