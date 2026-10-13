@@ -26,5 +26,15 @@ return {
             harpoon:list():select(idx)
           end)
     end
+
+    -- Вторая пара клавиш на те же слоты: в ноутбуках <C-j>/<C-k> перехватывает
+    -- jupyter.nvim (буфер-локальная мапа всегда сильнее глобальной), и слоты 2 и 3
+    -- оттуда недостижимы. <C-1..4> доезжают до nvim только с extended keys —
+    -- в tmux.conf для этого стоит terminal-features с extkeys.
+    for idx = 1, 4 do
+          vim.keymap.set("n", "<C-" .. idx .. ">", function()
+            harpoon:list():select(idx)
+          end)
+    end
     end,
 }

@@ -18,6 +18,36 @@
 -- находится история, в том числе снаружи nvim. Отменяется обычным undo.
 --
 -- Известные шероховатости плагина — в его README, раздел «Известные проблемы».
+--
+-- Экспорт в HTML/PDF — не плагин, а ~/.local/bin/nb-export: <leader>ne / <leader>nE.
+-- Ноутбук прогоняется заново в отдельном ядре (выводы плагина лежат в .jupyter-out, не
+-- в .ipynb), так что тяжёлый ноутбук с Redshift экспортируется долго.
+
+local function export(pdf)
+    local path = vim.api.nvim_buf_get_name(0)
+    if not path:match("%.ipynb$") then
+        vim.notify("nb-export: буфер не .ipynb", vim.log.levels.WARN)
+        return
+    end
+    vim.cmd("silent update")
+    vim.notify("nb-export: " .. vim.fn.fnamemodify(path, ":t") .. (pdf and " → pdf…" or " → html…"))
+    local cmd = { vim.fn.expand("~/.local/bin/nb-export"), "--open" }
+    if pdf then
+        table.insert(cmd, "--pdf")
+    end
+    table.insert(cmd, path)
+    vim.system(cmd, { text = true }, function(r)
+        vim.schedule(function()
+            if r.code == 0 then
+                vim.notify("nb-export: " .. vim.trim(r.stdout))
+            else
+                local lines = vim.split(vim.trim(r.stderr), "\n")
+                local tail = table.concat(vim.list_slice(lines, math.max(1, #lines - 9)), "\n")
+                vim.notify("nb-export упал:\n" .. tail, vim.log.levels.ERROR)
+            end
+        end)
+    end)
+end
 
 return {
     {
@@ -25,9 +55,23 @@ return {
         dir = vim.fn.expand("~/projects/jupyter.nvim"),
         ft = { "python", "markdown" }, -- .ipynb приходит как python (jupytext)
         main = "jupyter",
+        keys = {
+            { "<leader>ne", function() export(false) end, ft = { "python", "markdown" }, desc = "Notebook → HTML" },
+            { "<leader>nE", function() export(true) end, ft = { "python", "markdown" }, desc = "Notebook → PDF" },
+        },
         init = function()
             -- сайдкару нужен python с jupyter_client и polars; в neovim-venv их нет
             vim.g.jupyter_python = vim.fn.expand("~/work/jupyter-utils/.venv/bin/python")
+            -- первая ячейка нового (несуществующего или пустого) .ipynb
+            vim.g.jupyter_new_notebook = {
+                "```python",
+                "import polars as pl",
+                "import nb_utils",
+                "from nb_utils import run_query",
+                "",
+                "%connect rs",
+                "```",
+            }
         end,
         opts = {
             kernel_name = "jupyter-utils", -- ~/Library/Jupyter/kernels/jupyter-utils
@@ -39,6 +83,10 @@ return {
             -- в терминале рендерить itables нечем: ядро должно знать это с рождения
             env = { NB_UTILS_ITABLES = "0" },
             -- дробный size = доля экрана; в высокое окно справа влезает много строк
+            -- статус на строке закрывающего фенса, поверх черты render-markdown
+            -- (border = "thin"): прилегает к телу и сам служит нижней границей ячейки.
+            -- При border = "hide" строка фенса скрыта — тогда нужен дефолтный "below".
+            status = { position = "fence" },
             output = {
                 position = "right",
                 size = 0.5,
@@ -58,6 +106,9 @@ return {
                 next_cell = { "<C-j>", "]n" },
                 prev_cell = { "<C-k>", "[n" },
                 toggle_output = "<leader>no",
+                -- закрепить вывод ячейки в окне над основным; повтор на той же ячейке
+                -- или q в закреплённом окне — снять
+                pin_output = "<leader>np",
                 show_toc = "<leader>nT", -- оглавление: заголовки и ячейки со статусом
                 open_table = "<leader>nt",
                 edit_cell_args = "<leader>ng", -- параметры %%sql: спросит, подставив нынешние
@@ -68,11 +119,21 @@ return {
                 move_cell_down = "<leader>nJ",
                 cell_to_markdown = "<leader>nm",
                 cell_to_code = "<leader>ny",
+                -- python ↔ sql: правит слово в фенсе, %%sql плагин соберёт сам
+                cell_lang = "<leader>nl",
+                -- начало и конец своей ячейки; пара к ]n / [n по соседним
+                cell_start = "[N",
+                cell_end = "]N",
                 -- листание истории прогонов ячейки: ]r / [r свободны
                 prev_run = "[r",
                 next_run = "]r",
                 interrupt = "<leader>ni",
                 restart = "<leader>nR",
+                -- спросить агента про ячейку под курсором; из visual — про выделение.
+                -- Промпт набирается в плавающем окне, уезжает в панель tmux с claude,
+                -- метка на ячейке встаёт сразу по нажатию.
+                ask = "<leader>nq",
+                ask_notebook = "<leader>nQ", -- то же про весь ноутбук (:JupyterAsk!)
             },
         },
     },

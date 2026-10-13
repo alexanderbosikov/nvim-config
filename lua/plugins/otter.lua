@@ -14,6 +14,12 @@ return {
                 write_to_disk = false, -- скрытые буферы живут только в памяти
             },
             handle_leading_whitespace = true,
+            lsp = {
+                -- по умолчанию только BufWritePost, а скрытый буфер otter синкает лишь на
+                -- LSP-запросах: диагностика застревала на полунабранной строке (`test('asd`
+                -- без закрывающей скобки — автопара допечатала её уже без запроса)
+                diagnostic_update_events = { "BufWritePost", "InsertLeave", "TextChanged" },
+            },
         })
 
         -- авто-активация только в ноутбуках (markdown-буфер с именем *.ipynb);
