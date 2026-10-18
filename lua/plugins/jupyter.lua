@@ -1,4 +1,5 @@
--- jupyter.nvim: свой плагин для ячеек .ipynb (~/projects/jupyter.nvim).
+-- jupyter.nvim: свой плагин для ячеек .ipynb (локальный клон: ~/projects/jupyter.nvim на
+-- рабочем Маке, ~/Projects/jupyter-nvim на домашнем Linux).
 -- Ядро живёт в отдельном процессе-сайдкаре, вывод приезжает в обычный scratch-буфер,
 -- поэтому копируется и ищется нативно. Устройство — в ARCHITECTURE.md плагина.
 --
@@ -22,6 +23,17 @@
 -- Экспорт в HTML/PDF — не плагин, а ~/.local/bin/nb-export: <leader>ne / <leader>nE.
 -- Ноутбук прогоняется заново в отдельном ядре (выводы плагина лежат в .jupyter-out, не
 -- в .ipynb), так что тяжёлый ноутбук с Redshift экспортируется долго.
+
+-- Первый существующий путь из списка: пути на машинах разные, конфиг один
+local function first_existing(paths)
+    for _, p in ipairs(paths) do
+        local full = vim.fn.expand(p)
+        if vim.uv.fs_stat(full) then
+            return full
+        end
+    end
+    return vim.fn.expand(paths[1])
+end
 
 local function export(pdf)
     local path = vim.api.nvim_buf_get_name(0)
@@ -52,7 +64,7 @@ end
 return {
     {
         name = "jupyter.nvim",
-        dir = vim.fn.expand("~/projects/jupyter.nvim"),
+        dir = first_existing({ "~/projects/jupyter.nvim", "~/Projects/jupyter-nvim" }),
         ft = { "python", "markdown" }, -- .ipynb приходит как python (jupytext)
         main = "jupyter",
         keys = {
@@ -61,7 +73,10 @@ return {
         },
         init = function()
             -- сайдкару нужен python с jupyter_client и polars; в neovim-venv их нет
-            vim.g.jupyter_python = vim.fn.expand("~/work/jupyter-utils/.venv/bin/python")
+            vim.g.jupyter_python = first_existing({
+                "~/work/jupyter-utils/.venv/bin/python",
+                "~/Projects/jupyter-utils/.venv/bin/python",
+            })
             -- первая ячейка нового (несуществующего или пустого) .ipynb
             vim.g.jupyter_new_notebook = {
                 "```python",
@@ -74,7 +89,7 @@ return {
             }
         end,
         opts = {
-            kernel_name = "jupyter-utils", -- ~/Library/Jupyter/kernels/jupyter-utils
+            kernel_name = "jupyter-utils", -- ~/Library/Jupyter/kernels (Мак) или ~/.local/share/jupyter/kernels (Linux)
             -- Выход из редактора ядро не гасит: тяжёлые фреймы после долгого запроса к
             -- Redshift стоят дороже перезапуска nvim. Вернуться к живому ядру —
             -- :JupyterAttach, плагин сам предложит это при открытии ноутбука.

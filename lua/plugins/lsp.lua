@@ -28,7 +28,8 @@ return {
 			before_init = function(_, config)
 				local candidates = {
 					config.root_dir and (config.root_dir .. "/.venv/bin/python"),
-					vim.fn.expand("~/work/jupyter-utils/.venv/bin/python"),
+					vim.fn.expand("~/work/jupyter-utils/.venv/bin/python"), -- рабочий Мак
+					vim.fn.expand("~/Projects/jupyter-utils/.venv/bin/python"), -- домашний Linux
 				}
 				for _, python in ipairs(vim.tbl_filter(function(c) return c end, candidates)) do
 					if vim.fn.executable(python) == 1 then
