@@ -1,15 +1,11 @@
--- Широкие таблицы в md читать с переносом невозможно: строка таблицы уезжает
--- в несколько виртуальных, колонки перестают совпадать по вертикали. Поэтому
--- здесь, в отличие от text, перенос выключен — строка таблицы остаётся строкой
--- на экране, а вбок ходим скроллом.
+-- По умолчанию длинные строки переносятся (по словам, с сохранением отступа).
+-- Широкие таблицы с переносом читать невозможно: строка таблицы уезжает в
+-- несколько виртуальных, колонки перестают совпадать по вертикали. Для них —
+-- <leader>uw (выключить перенос и ходить вбок скроллом) или <leader>mt.
 --
--- Побочный эффект, про который стоит знать: render-markdown гасит рендер, когда
--- окно проскроллено вбок (leftcol ~= 0, core/ui.lua). Уехал вправо по таблице —
--- видишь сырой markdown с "|". Колонки при этом выровнены ровно как в файле.
---
--- linebreak/breakindent оставлены: они ни на что не влияют при nowrap, но сразу
--- работают, когда перенос включают обратно тогглом ниже.
-vim.opt_local.wrap = false
+-- При nowrap render-markdown гасил бы рендер, когда окно проскроллено вбок
+-- (leftcol ~= 0, core/ui.lua) — это обходит патч в plugins/render-markdown.lua.
+vim.opt_local.wrap = true
 vim.opt_local.linebreak = true
 vim.opt_local.breakindent = true
 
@@ -19,9 +15,23 @@ vim.opt_local.breakindent = true
 -- оконного варианта у неё нет.
 vim.opt_local.sidescrolloff = 4
 
--- Для прозы перенос всё-таки нужен. Маппинг буферный: за пределами markdown
+-- Тоггл переноса — для широких таблиц. Маппинг буферный: за пределами markdown
 -- <leader>uw не занят.
 vim.keymap.set("n", "<leader>uw", function()
   vim.opt_local.wrap = not vim.wo.wrap
   vim.notify("wrap: " .. (vim.wo.wrap and "on" or "off"))
 end, { buffer = true, desc = "Markdown: перенос строк вкл/выкл" })
+
+-- Широкая таблица → длинные ячейки переносятся на строки-продолжения
+-- (~/work/tools/mdtable). В normal берётся абзац под курсором — таблица
+-- от пустой строки до пустой строки; в visual — выделение. Таблицы, которые
+-- и так влезают в ширину, скрипт не трогает.
+local mdtable = "python3 " .. vim.fn.expand("~/work/tools/mdtable/mdtable.py")
+vim.keymap.set("n", "<leader>mt", function()
+  local view = vim.fn.winsaveview()
+  vim.cmd("silent normal! vip\27")
+  vim.cmd("silent '<,'>!" .. mdtable)
+  vim.fn.winrestview(view)
+end, { buffer = true, desc = "Markdown: переформатировать таблицу под курсором" })
+vim.keymap.set("x", "<leader>mt", ":<C-u>silent '<,'>!" .. mdtable .. "<CR>",
+  { buffer = true, desc = "Markdown: переформатировать выделенную таблицу" })
