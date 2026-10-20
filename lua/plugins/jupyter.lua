@@ -126,6 +126,9 @@ return {
                 pin_output = "<leader>np",
                 show_toc = "<leader>nT", -- оглавление: заголовки и ячейки со статусом
                 open_table = "<leader>nt",
+                -- картинки ячейки во всю вкладку; <Tab>/<S-Tab> листают, как в таблице.
+                -- f как «figure», а не I: <leader>ni рядом — прерывание ядра
+                open_image = "<leader>nf",
                 edit_cell_args = "<leader>ng", -- параметры %%sql: спросит, подставив нынешние
                 -- перестройка ячеек; m и y — как в командном режиме Jupyter
                 split_cell = "<leader>ns",
